@@ -29,5 +29,29 @@ export enum Category {
   CASUAL = 'Повседневные',
   COCKTAIL = 'Коктейльные',
   OFFICE = 'Офисные',
-  SUMMER = 'Летние'
+  SUMMER = 'Летние',
+  INDIA = 'Индия',
+  CHINA = 'Китай',
+  KYRGYZSTAN = 'Кыргызстан'
+}
+
+export type OrderStatus = 'pending' | 'preparing' | 'shipped' | 'delivered';
+
+export interface Order {
+  id: string;
+  customerName: string;
+  phone: string;
+  items: CartItem[];
+  total: number;
+  district: string;
+  address: string;
+  deliveryMethod: string;
+  status: OrderStatus;
+  createdAt: string;
+}
+
+export interface District {
+  name: string;
+  price: number;
+  estimatedTime: string;
 }

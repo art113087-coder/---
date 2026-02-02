@@ -15,47 +15,6 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://zhumagul-shymkent.example.com">
 
-    <!-- JSON-LD для Google (Structured Data) -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "ClothingStore",
-      "name": "Zhumagul Boutique",
-      "image": "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2000&auto=format&fit=crop",
-      "@id": "https://zhumagul-shymkent.example.com",
-      "url": "https://zhumagul-shymkent.example.com",
-      "telephone": "+77000000000",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "Рынок Автонур, Ряд 5, Бутик 12",
-        "addressLocality": "Шымкент",
-        "addressCountry": "KZ"
-      },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 42.3155, 
-        "longitude": 69.5869
-      },
-      "openingHoursSpecification": {
-        "@type": "OpeningHoursSpecification",
-        "dayOfWeek": [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-          "Sunday"
-        ],
-        "opens": "09:00",
-        "closes": "18:00"
-      },
-      "sameAs": [
-        "https://instagram.com/zhumagul_boutique"
-      ]
-    }
-    </script>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
@@ -67,6 +26,14 @@
             font-family: 'Playfair Display', serif;
         }
         
+        .product-image-container::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, transparent 60%, rgba(0,0,0,0.05));
+          pointer-events: none;
+        }
+
         @keyframes pop {
           0% { transform: scale(1); }
           50% { transform: scale(1.4); }
@@ -82,17 +49,6 @@
         }
         .animate-slide-in-top {
           animation: slide-in-top 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes cart-bounce {
-          0%, 100% { transform: translateY(0); }
-          20% { transform: translateY(-6px); }
-          40% { transform: translateY(0); }
-          60% { transform: translateY(-3px); }
-          80% { transform: translateY(0); }
-        }
-        .animate-cart-bounce {
-          animation: cart-bounce 0.6s ease;
         }
 
         @keyframes fade-in {
@@ -121,10 +77,14 @@
 
         @keyframes ken-burns {
           0% { transform: scale(1); }
-          100% { transform: scale(1.15); }
+          100% { transform: scale(1.1); }
         }
         .animate-ken-burns {
           animation: ken-burns 20s ease-in-out infinite alternate;
+        }
+
+        .lightbox-zoom:hover {
+          cursor: zoom-in;
         }
     </style>
 <script type="importmap">

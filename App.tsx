@@ -1,17 +1,16 @@
 
 import React from 'react';
-import { Product, CartItem, Category, Review } from './types';
-import { MOCK_PRODUCTS, INSTAGRAM_HANDLE, TELEGRAM_USERNAME, GMAIL_ACCOUNT, WHATSAPP_NUMBER, TRANSLATIONS, SHOP_ADDRESS, DEFAULT_HERO_IMAGE } from './constants';
+import { Product, CartItem, Order, OrderStatus, Review, Category } from './types';
+import { MOCK_PRODUCTS, TRANSLATIONS, DEFAULT_HERO_IMAGE, WHATSAPP_NUMBER, INSTAGRAM_HANDLE, SHOP_ADDRESS } from './constants';
 import Header from './components/Header';
 import ProductCard from './components/ProductCard';
 import Cart from './components/Cart';
-import AIChat from './components/AIChat';
-import LifestyleModal from './components/LifestyleModal';
-import AIStudio from './components/AIStudio';
-import ComparisonModal from './components/ComparisonModal';
 import AdminPanel from './components/AdminPanel';
+import AIChat from './components/AIChat';
+import AIStudio from './components/AIStudio';
+import LifestyleModal from './components/LifestyleModal';
+import ComparisonModal from './components/ComparisonModal';
 import ProductModal from './components/ProductModal';
-import { analyzeImageForSearch } from './services/geminiService';
 
 const App: React.FC = () => {
   const [lang, setLang] = React.useState('ru');
@@ -19,120 +18,93 @@ const App: React.FC = () => {
   
   const [view, setView] = React.useState<'home' | 'catalog' | 'wishlist'>('home');
   const [cartItems, setCartItems] = React.useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = React.useState(false);
-  
-  const [heroImage, setHeroImage] = React.useState<string>(localStorage.getItem('zhumagul_hero_bg') || DEFAULT_HERO_IMAGE);
-  const [allProducts, setAllProducts] = React.useState<Product[]>([]);
   const [wishlist, setWishlist] = React.useState<string[]>([]);
-  const [isAdminOpen, setIsAdminOpen] = React.useState(false);
-  const [isVisualSearchOpen, setIsVisualSearchOpen] = React.useState(false);
-
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState<string>('Все');
-  
-  const [lifestyleProduct, setLifestyleProduct] = React.useState<Product | null>(null);
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
-  const [isStudioOpen, setIsStudioOpen] = React.useState(false);
-  const [showToast, setShowToast] = React.useState<string | null>(null);
-
   const [compareList, setCompareList] = React.useState<Product[]>([]);
+  
+  const [isCartOpen, setIsCartOpen] = React.useState(false);
+  const [isAdminOpen, setIsAdminOpen] = React.useState(false);
+  const [isStudioOpen, setIsStudioOpen] = React.useState(false);
   const [isCompareOpen, setIsCompareOpen] = React.useState(false);
+  
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(null);
+  const [lifestyleProduct, setLifestyleProduct] = React.useState<Product | null>(null);
+  
+  const [orders, setOrders] = React.useState<Order[]>(JSON.parse(localStorage.getItem('zhumagul_orders') || '[]'));
+  const [trackingId, setTrackingId] = React.useState('');
+  const [foundOrder, setFoundOrder] = React.useState<Order | null>(null);
+  const [showToast, setShowToast] = React.useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = React.useState<string>('Все');
 
-  React.useEffect(() => {
-    const savedProducts = localStorage.getItem('zhumagul_custom_products');
-    const customProducts = savedProducts ? (JSON.parse(savedProducts) as Product[]) : [];
-    setAllProducts([...MOCK_PRODUCTS, ...customProducts]);
-
-    const savedWishlist = localStorage.getItem('zhumagul_wishlist');
-    if (savedWishlist) setWishlist(JSON.parse(savedWishlist) as string[]);
-  }, []);
-
-  const saveProducts = (products: Product[]) => {
-    setAllProducts(products);
-    const customOnly = products.filter(p => p.id.startsWith('custom-'));
-    localStorage.setItem('zhumagul_custom_products', JSON.stringify(customOnly));
+  const placeOrder = (order: Order) => {
+    const newOrders = [order, ...orders];
+    setOrders(newOrders);
+    localStorage.setItem('zhumagul_orders', JSON.stringify(newOrders));
+    setCartItems([]);
+    setIsCartOpen(false);
+    setShowToast(`Заказ ${order.id} оформлен!`);
+    setTimeout(() => setShowToast(null), 5000);
   };
 
-  const updateHeroImage = (newImage: string) => {
-    setHeroImage(newImage);
-    localStorage.setItem('zhumagul_hero_bg', newImage);
-    setShowToast(t.uploadSuccess);
-    setTimeout(() => setShowToast(null), 3000);
+  const updateOrderStatus = (id: string, status: OrderStatus) => {
+    const updated = orders.map(o => o.id === id ? { ...o, status } : o);
+    setOrders(updated);
+    localStorage.setItem('zhumagul_orders', JSON.stringify(updated));
   };
 
-  const addProduct = (newProduct: Product) => {
-    const updated = [...allProducts, newProduct];
-    saveProducts(updated);
-    setShowToast(`Товар "${newProduct.name}" добавлен!`);
-    setTimeout(() => setShowToast(null), 3000);
+  const trackOrder = () => {
+    const found = orders.find(o => o.id.toUpperCase() === trackingId.trim().toUpperCase());
+    setFoundOrder(found || null);
+    if (!found) {
+      setShowToast("Заказ не найден");
+      setTimeout(() => setShowToast(null), 3000);
+    }
   };
 
-  const deleteProduct = (id: string) => {
-    const updated = allProducts.filter(p => p.id !== id);
-    saveProducts(updated);
-    setShowToast("Товар удален");
+  const addToCart = (product: Product, size: string) => {
+    setCartItems(prev => {
+      const existing = prev.find(item => item.id === product.id && item.selectedSize === size);
+      if (existing) return prev.map(item => item.id === product.id && item.selectedSize === size ? { ...item, quantity: item.quantity + 1 } : item);
+      return [...prev, { ...product, quantity: 1, selectedSize: size }];
+    });
+    setShowToast(`${product.name} в корзине!`);
     setTimeout(() => setShowToast(null), 3000);
   };
 
   const toggleWishlist = (product: Product) => {
     setWishlist(prev => {
       const isIncluded = prev.includes(product.id);
-      const updated = isIncluded ? prev.filter(id => id !== product.id) : [...prev, product.id];
-      localStorage.setItem('zhumagul_wishlist', JSON.stringify(updated));
-      setShowToast(isIncluded ? "Удалено из избранного" : "Добавлено в избранное");
-      setTimeout(() => setShowToast(null), 3000);
-      return updated;
+      return isIncluded ? prev.filter(id => id !== product.id) : [...prev, product.id];
     });
   };
 
-  const addToCart = (product: Product, size: string) => {
-    setCartItems(prev => {
-      const existing = prev.find(item => item.id === product.id && item.selectedSize === size);
-      if (existing) {
-        return prev.map(item => 
-          item.id === product.id && item.selectedSize === size 
-            ? { ...item, quantity: item.quantity + 1 } 
-            : item
-        );
+  const toggleCompare = (product: Product) => {
+    setCompareList(prev => {
+      const isIncluded = prev.find(p => p.id === product.id);
+      if (isIncluded) return prev.filter(p => p.id !== product.id);
+      if (prev.length >= 4) {
+        setShowToast("Максимум 4 товара для сравнения");
+        setTimeout(() => setShowToast(null), 3000);
+        return prev;
       }
-      return [...prev, { ...product, quantity: 1, selectedSize: size }];
+      return [...prev, product];
     });
-    setShowToast(`${product.name} добавлен!`);
-    setTimeout(() => setShowToast(null), 3000);
   };
 
-  const removeFromCart = (id: string, size: string) => {
-    setCartItems(prev => prev.filter(item => !(item.id === id && item.selectedSize === size)));
-  };
-
-  const updateQuantity = (id: string, size: string, delta: number) => {
-    setCartItems(prev => prev.map(item => {
-      if (item.id === id && item.selectedSize === size) {
-        return { ...item, quantity: Math.max(1, item.quantity + delta) };
-      }
-      return item;
-    }));
-  };
-
-  const filteredProducts = allProducts.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          p.description.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredProducts = MOCK_PRODUCTS.filter(p => {
     const categoryMatch = selectedCategory === 'Все' || p.category === selectedCategory;
     const isWishlistOnly = view === 'wishlist' ? wishlist.includes(p.id) : true;
-    return matchesSearch && categoryMatch && isWishlistOnly;
+    return categoryMatch && isWishlistOnly;
   });
 
-  const openInMaps = () => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(SHOP_ADDRESS)}`, '_blank');
-  };
+  const categoriesList = ['Все', ...Object.values(Category)];
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-white selection:bg-amber-100">
       {showToast && (
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-xs px-4 animate-slide-in-top">
-          <div className="bg-stone-900 text-white p-4 rounded-xl shadow-2xl flex items-center gap-3 border border-stone-800/50">
-            <div className="bg-amber-500 text-white w-8 h-8 rounded-full flex items-center justify-center shrink-0">
-              <i className="fa-solid fa-check text-xs"></i>
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-full max-w-sm px-4 animate-slide-in-top">
+          <div className="bg-stone-900 text-white p-5 rounded-2xl shadow-2xl flex items-center gap-4 border border-stone-800">
+            <div className="bg-amber-500 text-white w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+              <i className="fa-solid fa-check"></i>
             </div>
             <p className="text-xs font-bold leading-tight">{showToast}</p>
           </div>
@@ -145,13 +117,9 @@ const App: React.FC = () => {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenWishlist={() => setView('wishlist')}
         onOpenAdmin={() => setIsAdminOpen(true)}
-        onOpenVisualSearch={() => setIsVisualSearchOpen(true)}
-        onShare={() => {
-            navigator.clipboard.writeText(window.location.href);
-            setShowToast("Ссылка скопирована!");
-            setTimeout(() => setShowToast(null), 3000);
-        }}
-        onNavigate={(v) => { setView(v); setSelectedCategory('Все'); setSearchQuery(''); window.scrollTo(0,0); }}
+        onOpenVisualSearch={() => {}}
+        onShare={() => {}}
+        onNavigate={(v) => { setView(v); setSelectedCategory('Все'); window.scrollTo(0,0); }}
         lang={lang}
         setLang={setLang}
       />
@@ -159,11 +127,11 @@ const App: React.FC = () => {
       <main className="flex-grow">
         {view === 'home' ? (
           <>
-            {/* Professional Hero Section */}
+            {/* 1. Hero Section */}
             <section className="relative h-[85vh] flex items-center overflow-hidden">
               <div className="absolute inset-0">
-                <img src={heroImage} className="w-full h-full object-cover animate-ken-burns" alt="Boutique" />
-                <div className="absolute inset-0 bg-stone-900/40"></div>
+                <img src={DEFAULT_HERO_IMAGE} className="w-full h-full object-cover animate-ken-burns" alt="Hero" />
+                <div className="absolute inset-0 bg-stone-900/40 backdrop-blur-[1px]"></div>
               </div>
               <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
                 <div className="max-w-3xl text-white">
@@ -174,7 +142,7 @@ const App: React.FC = () => {
                     Твое идеальное <br/><span className="italic text-amber-100 font-light">платье</span> здесь.
                   </h1>
                   <p className="text-xl md:text-2xl text-stone-100 mb-12 max-w-xl font-light drop-shadow-md leading-relaxed">
-                    Элегантность в каждой детали. Приходите на примерку в наш бутик на рынке Автонур.
+                    Элегантность в каждой детали. Шымкент, рынок Автонур. Доставка Яндекс Go за 1 час.
                   </p>
                   <div className="flex flex-wrap gap-6">
                     <button onClick={() => setView('catalog')} className="px-12 py-6 bg-white text-stone-900 text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-amber-600 hover:text-white transition-all rounded-full shadow-2xl active:scale-95">
@@ -188,7 +156,7 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* Feature Blocks (USP) */}
+            {/* 2. Feature Blocks (USP) */}
             <section className="py-16 bg-white border-b border-stone-100">
               <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
                 {[
@@ -210,35 +178,38 @@ const App: React.FC = () => {
               </div>
             </section>
 
-            {/* Visual Category Grid (Professional Catalog Style) */}
+            {/* 3. Global Collections Grid */}
             <section className="py-24 px-6 max-w-7xl mx-auto">
               <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-serif font-bold text-stone-900 mb-4">{lang === 'ru' ? 'Выбирайте категорию' : 'Санатты таңдаңыз'}</h2>
-                <div className="w-20 h-1 bg-amber-600 mx-auto"></div>
+                <h2 className="text-4xl md:text-5xl font-serif font-bold text-stone-900 mb-4">{lang === 'ru' ? 'Мировые коллекции' : 'Әлемдік топтамалар'}</h2>
+                <p className="text-stone-400 max-w-xl mx-auto text-sm">{lang === 'ru' ? 'Лучшая одежда из Индии, Китая и Кыргызстана специально для вас' : 'Үндістан, Қытай және Қырғызстанның үздік киімдері арнайы сіздер үшін'}</p>
+                <div className="w-20 h-1 bg-amber-600 mx-auto mt-6"></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {[
-                  { title: 'Вечерние', img: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?q=80&w=800' },
-                  { title: 'Повседневные', img: 'https://images.unsplash.com/photo-1618932260643-eee4a2f652a6?q=80&w=800' },
-                  { title: 'Офисные', img: 'https://images.unsplash.com/photo-1604176354204-926873ff34b0?q=80&w=800' },
+                  { title: 'Индия', category: Category.INDIA, img: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=800', desc: 'Натуральный шелк и хлопок' },
+                  { title: 'Китай', category: Category.CHINA, img: 'https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?q=80&w=800', desc: 'Модные платья Гуанчжоу' },
+                  { title: 'Кыргызстан', category: Category.KYRGYZSTAN, img: 'https://images.unsplash.com/photo-1572804013307-f97119af50c7?q=80&w=800', desc: 'Мягкий бишкекский трикотаж' },
                 ].map((cat, i) => (
                   <div 
                     key={i} 
-                    onClick={() => { setView('catalog'); setSelectedCategory(cat.title); window.scrollTo(0,0); }}
-                    className="group relative h-[500px] rounded-2xl overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-700"
+                    onClick={() => { setView('catalog'); setSelectedCategory(cat.category); window.scrollTo(0,0); }}
+                    className="group relative aspect-[4/5] rounded-[2.5rem] overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-700 border border-stone-100"
                   >
                     <img src={cat.img} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={cat.title} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-transparent to-transparent"></div>
-                    <div className="absolute bottom-10 left-10">
-                      <h3 className="text-white text-3xl font-serif font-bold mb-3">{cat.title}</h3>
-                      <span className="text-amber-400 text-[11px] font-bold uppercase tracking-[0.3em] border-b border-amber-400/50 pb-1 group-hover:border-amber-400 transition-all">Смотреть коллекцию</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/90 via-stone-900/20 to-transparent"></div>
+                    <div className="absolute bottom-10 left-10 right-10">
+                      <p className="text-amber-400 text-[10px] font-bold uppercase tracking-[0.4em] mb-2">{cat.desc}</p>
+                      <h3 className="text-white text-3xl font-serif font-bold mb-4">{cat.title}</h3>
+                      <div className="w-0 group-hover:w-full h-[1px] bg-amber-600 transition-all duration-700 mb-4"></div>
+                      <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">Смотреть платья <i className="fa-solid fa-arrow-right ml-2 text-[8px]"></i></span>
                     </div>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Best Sellers Section */}
+            {/* 4. Best Sellers */}
             <section className="py-24 bg-stone-50">
                <div className="max-w-7xl mx-auto px-6">
                   <div className="flex justify-between items-end mb-16">
@@ -248,13 +219,13 @@ const App: React.FC = () => {
                     </div>
                     <button onClick={() => setView('catalog')} className="text-amber-600 font-bold uppercase text-[11px] tracking-widest border-b border-amber-600/30 pb-1 hover:border-amber-600 transition-all">{t.catalog}</button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-12">
-                    {allProducts.slice(0, 3).map(p => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {MOCK_PRODUCTS.slice(0, 8).map(p => (
                       <ProductCard 
                         key={p.id} product={p} 
                         onAddToCart={addToCart} 
                         onViewLifestyle={setLifestyleProduct} 
-                        onToggleCompare={(prod) => setCompareList(prev => prev.find(x => x.id === prod.id) ? prev.filter(x => x.id !== prod.id) : [...prev, prod])}
+                        onToggleCompare={toggleCompare}
                         onToggleWishlist={toggleWishlist}
                         onShowDetails={() => setSelectedProduct(p)}
                         isCompared={!!compareList.find(x => x.id === p.id)}
@@ -266,65 +237,77 @@ const App: React.FC = () => {
                </div>
             </section>
 
-            {/* Yandex & Social Section */}
-            <section className="py-24 bg-white">
-               <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                  <div className="bg-yellow-400 p-12 rounded-[3.5rem] shadow-2xl relative overflow-hidden group">
-                     <div className="relative z-10">
-                        <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center text-yellow-400 text-5xl mb-8 group-hover:rotate-12 transition-transform">
-                          <i className="fa-solid fa-taxi"></i>
+            {/* 5. Logistics Tracking Section */}
+            <section className="py-24 bg-white border-t border-stone-100">
+               <div className="max-w-4xl mx-auto px-6">
+                  <div className="bg-stone-900 p-10 md:p-16 rounded-[3rem] shadow-2xl text-center relative overflow-hidden">
+                    <div className="relative z-10 text-white">
+                      <h2 className="text-3xl md:text-4xl font-serif font-bold mb-4">{t.trackOrder}</h2>
+                      <p className="text-stone-400 mb-12 text-sm">{lang === 'ru' ? 'Введите номер заказа для отслеживания доставки из Автонура' : 'Автонурдан жеткізуді бақылау үшін тапсырыс нөмірін енгізіңіз'}</p>
+                      
+                      <div className="flex flex-col md:flex-row gap-4 max-w-md mx-auto mb-12">
+                        <input 
+                          value={trackingId} 
+                          onChange={(e) => setTrackingId(e.target.value)} 
+                          placeholder={t.orderIdPlaceholder} 
+                          className="flex-grow px-8 py-5 bg-white/10 rounded-full border-none outline-none ring-1 ring-white/20 focus:ring-amber-500 transition-all text-sm font-bold text-white placeholder:text-stone-500"
+                        />
+                        <button onClick={trackOrder} className="px-10 py-5 bg-amber-600 text-white font-bold uppercase text-[10px] tracking-widest rounded-full hover:bg-amber-500 transition shadow-lg">{t.trackBtn}</button>
+                      </div>
+
+                      {foundOrder && (
+                        <div className="bg-white/5 backdrop-blur-md p-10 rounded-[2.5rem] text-left animate-fade-in border border-white/10">
+                          <div className="flex justify-between items-center mb-10 pb-6 border-b border-white/10">
+                            <div>
+                              <p className="text-[10px] uppercase font-bold text-amber-500 mb-1 tracking-widest">Заказ #{foundOrder.id}</p>
+                              <p className="text-2xl font-serif font-bold">{t[`status_${foundOrder.status}`]}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] uppercase font-bold text-stone-400 mb-1 tracking-widest">Район</p>
+                              <p className="text-sm font-bold text-amber-500">{foundOrder.district}</p>
+                            </div>
+                          </div>
+
+                          <div className="relative flex justify-between items-center">
+                            <div className="absolute top-1/2 left-0 w-full h-1 bg-white/10 -translate-y-1/2"></div>
+                            <div className={`absolute top-1/2 left-0 h-1 bg-amber-600 -translate-y-1/2 transition-all duration-1000 ${foundOrder.status === 'pending' ? 'w-0' : foundOrder.status === 'preparing' ? 'w-1/3' : foundOrder.status === 'shipped' ? 'w-2/3' : 'w-full'}`}></div>
+                            
+                            {['pending', 'preparing', 'shipped', 'delivered'].map((st, i) => {
+                              const isActive = ['pending', 'preparing', 'shipped', 'delivered'].indexOf(foundOrder.status) >= i;
+                              return (
+                                <div key={st} className="relative z-10 flex flex-col items-center">
+                                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border-4 border-stone-900 transition-all duration-500 ${isActive ? 'bg-amber-600 text-white shadow-lg' : 'bg-stone-800 text-stone-500'}`}>
+                                    <i className={`fa-solid ${st === 'pending' ? 'fa-receipt' : st === 'preparing' ? 'fa-box-open' : st === 'shipped' ? 'fa-taxi' : 'fa-check'} text-xs`}></i>
+                                  </div>
+                                  <span className={`text-[8px] uppercase font-bold mt-3 tracking-tighter ${isActive ? 'text-white' : 'text-stone-500'}`}>{t[`status_${st}`]}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold text-black mb-6 leading-tight">{t.yandexPromoTitle}</h2>
-                        <p className="text-black/80 font-medium text-lg leading-relaxed mb-10 max-w-md">
-                          {t.yandexPromoDesc}
-                        </p>
-                        <button onClick={() => setView('catalog')} className="bg-black text-white px-12 py-5 rounded-full text-xs font-bold uppercase tracking-[0.3em] shadow-xl hover:bg-stone-800 transition-all">Заказать доставку</button>
-                     </div>
-                     <div className="absolute -bottom-10 -right-10 text-black/5 text-[18rem] font-black pointer-events-none select-none">YANDEX</div>
-                  </div>
-                  <div className="space-y-10">
-                     <h2 className="text-4xl md:text-5xl font-serif font-bold text-stone-900 leading-tight">{t.stayConnected}</h2>
-                     <p className="text-stone-500 text-lg leading-relaxed">{t.followSocials}</p>
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <a href={`https://instagram.com/${INSTAGRAM_HANDLE}`} target="_blank" className="bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-8 rounded-3xl text-white group shadow-lg hover:-translate-y-2 transition-all">
-                           <i className="fa-brands fa-instagram text-4xl mb-4 group-hover:scale-110 transition-transform"></i>
-                           <p className="text-[10px] uppercase font-bold tracking-[0.3em] opacity-80 mb-1">Instagram</p>
-                           <p className="text-xl font-serif font-bold">@zhumagul_boutique</p>
-                        </a>
-                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-green-500 p-8 rounded-3xl text-white group shadow-lg hover:-translate-y-2 transition-all">
-                           <i className="fa-brands fa-whatsapp text-4xl mb-4 group-hover:scale-110 transition-transform"></i>
-                           <p className="text-[10px] uppercase font-bold tracking-[0.3em] opacity-80 mb-1">WhatsApp</p>
-                           <p className="text-xl font-serif font-bold">Заказать сейчас</p>
-                        </a>
-                     </div>
+                      )}
+                    </div>
                   </div>
                </div>
             </section>
 
-            {/* Visit Us Section */}
-            <section className="py-24 bg-stone-50">
+            {/* 6. Yandex Go Promo Block */}
+            <section className="py-24 bg-white">
               <div className="max-w-7xl mx-auto px-6">
-                <div className="bg-white rounded-[4rem] overflow-hidden shadow-2xl flex flex-col lg:flex-row">
-                  <div className="lg:w-1/2 p-12 md:p-20">
-                    <span className="text-amber-600 text-[10px] font-bold uppercase tracking-[0.5em] mb-6 block">{t.visitUs.toUpperCase()}</span>
-                    <h2 className="text-4xl md:text-6xl font-serif font-bold text-stone-900 mb-8 leading-tight">{t.mapsHint}</h2>
-                    <div className="space-y-6 mb-12">
-                      <div className="flex gap-4 items-start">
-                        <i className="fa-solid fa-location-dot text-amber-600 mt-1"></i>
-                        <p className="text-stone-600 font-medium">{SHOP_ADDRESS}</p>
-                      </div>
-                      <div className="flex gap-4 items-start">
-                        <i className="fa-solid fa-clock text-amber-600 mt-1"></i>
-                        <p className="text-stone-600 font-medium">{t.workHours}</p>
-                      </div>
+                <div className="bg-yellow-400 rounded-[3.5rem] p-12 md:p-24 flex flex-col lg:flex-row items-center gap-16 shadow-2xl overflow-hidden relative group">
+                  <div className="relative z-10 lg:w-1/2">
+                    <div className="w-20 h-20 bg-black rounded-3xl flex items-center justify-center text-yellow-400 text-4xl mb-8 group-hover:rotate-12 transition-transform duration-500">
+                      <i className="fa-solid fa-taxi"></i>
                     </div>
-                    <button onClick={openInMaps} className="bg-stone-900 text-white px-12 py-5 rounded-full text-[11px] font-bold uppercase tracking-[0.3em] hover:bg-amber-600 transition shadow-xl flex items-center gap-3">
-                      <i className="fa-solid fa-map-location-dot"></i> {t.getDirections}
-                    </button>
+                    <h2 className="text-4xl md:text-6xl font-serif font-bold text-black mb-8 leading-tight">{t.yandexPromoTitle}</h2>
+                    <p className="text-xl text-black/80 font-medium mb-12 max-w-md leading-relaxed">{t.yandexPromoDesc}</p>
+                    <button onClick={() => setView('catalog')} className="px-12 py-5 bg-black text-white text-xs font-bold uppercase tracking-widest rounded-full hover:scale-105 transition-all shadow-xl">Выбрать платье</button>
                   </div>
-                  <div className="lg:w-1/2 relative min-h-[400px]">
-                    <img src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1200" className="absolute inset-0 w-full h-full object-cover" alt="Store" />
-                    <div className="absolute inset-0 bg-stone-900/10"></div>
+                  <div className="lg:w-1/2 relative">
+                    <img src="https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?q=80&w=1200" className="rounded-3xl shadow-2xl group-hover:scale-105 transition-transform duration-700" alt="Delivery" />
+                    <div className="absolute -bottom-8 -left-8 bg-white p-6 rounded-2xl shadow-xl animate-bounce">
+                      <p className="text-black font-bold text-xs">Яндекс Go <span className="text-amber-600">от 600 ₸</span></p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -332,11 +315,11 @@ const App: React.FC = () => {
           </>
         ) : (
           <section className="py-24 px-6 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-16 border-b border-stone-100 pb-12">
+             <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-16 border-b border-stone-100 pb-12">
                <div>
                   <h1 className="text-5xl md:text-7xl font-serif font-bold text-stone-900 mb-6">{view === 'wishlist' ? t.wishlist : t.catalog}</h1>
                   <div className="flex gap-3 flex-wrap">
-                    {['Все', 'Вечерние', 'Повседневные', 'Летние', 'Офисные'].map(cat => (
+                    {categoriesList.map(cat => (
                       <button 
                         key={cat} 
                         onClick={() => setSelectedCategory(cat)}
@@ -347,116 +330,102 @@ const App: React.FC = () => {
                     ))}
                   </div>
                </div>
-               <div className="relative w-full max-w-md group">
-                 <input 
-                    type="text" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t.searchPlaceholder}
-                    className="w-full pl-6 pr-14 py-4.5 bg-stone-50 rounded-full border border-stone-100 text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none transition-all shadow-inner"
-                 />
-                 <i className="fa-solid fa-magnifying-glass absolute right-6 top-1/2 -translate-y-1/2 text-stone-300 group-focus-within:text-amber-600 transition-colors"></i>
-               </div>
             </div>
-
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-12">
-                {filteredProducts.map(p => (
-                  <ProductCard 
-                    key={p.id} product={p} 
-                    onAddToCart={addToCart} 
-                    onViewLifestyle={setLifestyleProduct} 
-                    onToggleCompare={(prod) => setCompareList(prev => prev.find(x => x.id === prod.id) ? prev.filter(x => x.id !== prod.id) : [...prev, prod])}
-                    onToggleWishlist={toggleWishlist}
-                    onShowDetails={() => setSelectedProduct(p)}
-                    isCompared={!!compareList.find(x => x.id === p.id)}
-                    isWishlisted={wishlist.includes(p.id)}
-                    lang={lang} 
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-40 space-y-8">
-                <div className="w-24 h-24 bg-stone-50 rounded-full flex items-center justify-center mx-auto text-stone-200">
-                  <i className="fa-solid fa-magnifying-glass text-4xl"></i>
-                </div>
-                <p className="text-stone-400 font-serif italic text-2xl">{lang === 'ru' ? 'По вашему запросу ничего не найдено...' : 'Тапсырысыңыз бойынша ештеңе табылмады...'}</p>
-                <button onClick={() => { setSearchQuery(''); setSelectedCategory('Все'); }} className="text-amber-600 font-bold uppercase text-[11px] tracking-widest border-b border-amber-600/30 pb-1">Сбросить поиск</button>
-              </div>
-            )}
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-12">
+               {filteredProducts.map(p => (
+                 <ProductCard 
+                   key={p.id} product={p} 
+                   onAddToCart={addToCart}
+                   onViewLifestyle={setLifestyleProduct} 
+                   onToggleCompare={toggleCompare} 
+                   onToggleWishlist={toggleWishlist} 
+                   onShowDetails={() => setSelectedProduct(p)}
+                   isCompared={!!compareList.find(x => x.id === p.id)} 
+                   isWishlisted={wishlist.includes(p.id)} 
+                   lang={lang}
+                 />
+               ))}
+             </div>
           </section>
         )}
       </main>
 
-      {/* Modern Footer (Kovrolux style) */}
       <footer className="bg-stone-900 text-white pt-32 pb-16">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-20 mb-24">
-          <div className="col-span-1 md:col-span-2">
-            <h3 className="text-4xl font-serif font-bold mb-10 tracking-tighter text-amber-500">ZHUMAGUL BOUTIQUE</h3>
-            <p className="text-stone-400 max-w-sm text-sm leading-relaxed mb-10">
-              {lang === 'ru' 
-                ? 'Ваш персональный гид в мире стиля в Шымкенте. Мы создаем и подбираем платья, которые подчеркивают вашу уникальность и элегантность.' 
-                : 'Шымкенттегі стиль әлеміндегі сіздің жеке нұсқаулығыңыз. Біз сіздің бірегейлігіңіз бен талғампаздығыңызды айқындайтын көйлектерді жасаймыз.'}
-            </p>
-            <div className="flex gap-6">
-              {[
-                { icon: 'fa-instagram', link: `https://instagram.com/${INSTAGRAM_HANDLE}` },
-                { icon: 'fa-whatsapp', link: `https://wa.me/${WHATSAPP_NUMBER}` },
-                { icon: 'fa-telegram', link: `https://t.me/${TELEGRAM_USERNAME}` },
-              ].map((s, i) => (
-                <a key={i} href={s.link} target="_blank" className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-amber-600 transition-all duration-500 group">
-                  <i className={`fa-brands ${s.icon} group-hover:scale-110 transition-transform`}></i>
-                </a>
-              ))}
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-20 mb-20">
+          <div>
+            <h3 className="text-3xl font-serif font-bold text-amber-500 mb-8 tracking-tighter">ZHUMAGUL BOUTIQUE</h3>
+            <p className="text-stone-400 text-sm leading-relaxed mb-8">Рынок Автонур, г. Шымкент. Мы делаем стиль доступным для каждой женщины.</p>
+            <div className="flex gap-4">
+               <a href={`https://instagram.com/${INSTAGRAM_HANDLE}`} target="_blank" className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-amber-600 transition-all"><i className="fa-brands fa-instagram"></i></a>
+               <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-green-600 transition-all"><i className="fa-brands fa-whatsapp"></i></a>
             </div>
           </div>
           <div>
-            <h4 className="text-[11px] uppercase tracking-[0.4em] font-bold text-amber-500 mb-10">{t.categories.toUpperCase()}</h4>
-            <ul className="space-y-5 text-stone-400 text-xs font-bold uppercase tracking-widest">
-              <li><button onClick={() => { setView('home'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">{t.home}</button></li>
-              <li><button onClick={() => { setView('catalog'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">{t.catalog}</button></li>
-              <li><button onClick={() => { setView('wishlist'); window.scrollTo(0,0); }} className="hover:text-white transition-colors">{t.wishlist}</button></li>
-              <li><button onClick={() => setIsAdminOpen(true)} className="hover:text-white transition-colors">Панель управления</button></li>
-            </ul>
+             <h4 className="text-[11px] font-bold uppercase tracking-[0.4em] text-amber-500 mb-8">РАЗДЕЛЫ</h4>
+             <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-stone-500">
+               <li><button onClick={() => setView('home')} className="hover:text-white transition-colors">{t.home}</button></li>
+               <li><button onClick={() => setView('catalog')} className="hover:text-white transition-colors">{t.catalog}</button></li>
+               <li><button onClick={() => setIsAdminOpen(true)} className="hover:text-white transition-colors">Управление</button></li>
+             </ul>
           </div>
           <div>
-            <h4 className="text-[11px] uppercase tracking-[0.4em] font-bold text-amber-500 mb-10">КОНТАКТЫ</h4>
-            <div className="space-y-8 text-sm">
-              <div className="flex gap-4">
-                <i className="fa-solid fa-location-dot text-amber-600"></i>
-                <p className="text-stone-400 leading-relaxed">{SHOP_ADDRESS}</p>
-              </div>
-              <div className="flex gap-4">
-                <i className="fa-solid fa-phone text-amber-600"></i>
-                <p className="text-stone-400">{WHATSAPP_NUMBER}</p>
-              </div>
-              <div className="flex gap-4">
-                <i className="fa-solid fa-envelope text-amber-600"></i>
-                <p className="text-stone-400">{GMAIL_ACCOUNT}</p>
-              </div>
-            </div>
+             <h4 className="text-[11px] font-bold uppercase tracking-[0.4em] text-amber-500 mb-8">ЛОКАЦИЯ</h4>
+             <p className="text-stone-400 text-sm mb-4"><i className="fa-solid fa-location-dot mr-2 text-amber-600"></i> {SHOP_ADDRESS}</p>
+             <p className="text-stone-400 text-sm mb-4"><i className="fa-solid fa-clock mr-2 text-amber-600"></i> 09:00 - 18:00</p>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-6 pt-12 border-t border-white/5 text-center">
-           <p className="text-[11px] text-stone-600 font-bold uppercase tracking-[0.4em]">© 2024 Zhumagul Boutique. Сделано в Шымкенте.</p>
+        <div className="max-w-7xl mx-auto px-6 pt-12 border-t border-white/5 text-center text-[10px] font-bold text-stone-600 tracking-widest uppercase">
+          © 2024 Zhumagul Shymkent. Шымкентский бутик платьев.
         </div>
       </footer>
 
-      <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} items={cartItems} onRemoveItem={removeFromCart} onUpdateQuantity={updateQuantity} lang={lang} />
-      <LifestyleModal product={lifestyleProduct} onClose={() => setLifestyleProduct(null)} lang={lang} />
-      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddReview={() => {}} lang={lang} />
-      <AIStudio isOpen={isStudioOpen} onClose={() => setIsStudioOpen(false)} lang={lang} />
-      <ComparisonModal products={compareList} isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} lang={lang} />
+      {/* Floating Action Buttons */}
+      <a 
+        href={`https://wa.me/${WHATSAPP_NUMBER}`} 
+        target="_blank" 
+        className="fixed bottom-6 left-6 z-50 w-16 h-16 bg-green-500 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform animate-bounce"
+      >
+        <i className="fa-brands fa-whatsapp text-3xl"></i>
+      </a>
+      
+      {compareList.length > 0 && (
+        <button 
+          onClick={() => setIsCompareOpen(true)}
+          className="fixed bottom-24 left-6 z-50 w-16 h-16 bg-amber-600 text-white rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-transform"
+        >
+          <i className="fa-solid fa-scale-balanced text-xl"></i>
+          <span className="absolute -top-1 -right-1 bg-white text-amber-600 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-amber-600">{compareList.length}</span>
+        </button>
+      )}
+
+      {/* Modals & Overlays */}
+      <Cart 
+        isOpen={isCartOpen} 
+        onClose={() => setIsCartOpen(false)} 
+        items={cartItems} 
+        onRemoveItem={(id, sz) => setCartItems(prev => prev.filter(i => !(i.id === id && i.selectedSize === sz)))}
+        onUpdateQuantity={(id, sz, delta) => setCartItems(prev => prev.map(i => i.id === id && i.selectedSize === sz ? {...i, quantity: Math.max(1, i.quantity + delta)} : i))}
+        onPlaceOrder={placeOrder} 
+        lang={lang} 
+      />
+      
       <AdminPanel 
         isOpen={isAdminOpen} 
         onClose={() => setIsAdminOpen(false)} 
-        allProducts={allProducts}
-        onAddProduct={addProduct} 
-        onDeleteProduct={deleteProduct}
-        onUpdateHeroImage={updateHeroImage}
-        currentHeroImage={heroImage}
+        allProducts={MOCK_PRODUCTS} 
+        orders={orders} 
+        onAddProduct={() => {}} 
+        onDeleteProduct={() => {}} 
+        onUpdateHeroImage={() => {}} 
+        onUpdateOrderStatus={updateOrderStatus} 
+        currentHeroImage={DEFAULT_HERO_IMAGE} 
         lang={lang} 
       />
+
+      <ComparisonModal products={compareList} isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} lang={lang} />
+      <LifestyleModal product={lifestyleProduct} onClose={() => setLifestyleProduct(null)} lang={lang} />
+      <ProductModal product={selectedProduct} onClose={() => setSelectedProduct(null)} onAddReview={() => {}} lang={lang} />
+      <AIStudio isOpen={isStudioOpen} onClose={() => setIsStudioOpen(false)} lang={lang} />
       <AIChat lang={lang} />
     </div>
   );
