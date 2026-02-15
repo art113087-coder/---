@@ -40,6 +40,7 @@ export type OrderStatus = 'pending' | 'preparing' | 'shipped' | 'delivered';
 export interface Order {
   id: string;
   customerName: string;
+  customerEmail: string;
   phone: string;
   items: CartItem[];
   total: number;

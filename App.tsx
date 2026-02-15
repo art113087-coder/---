@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Product, CartItem, Order, OrderStatus, Review, Category } from './types';
-import { MOCK_PRODUCTS, TRANSLATIONS, DEFAULT_HERO_IMAGE, WHATSAPP_NUMBER, INSTAGRAM_HANDLE, SHOP_ADDRESS } from './constants';
+import { MOCK_PRODUCTS, TRANSLATIONS, DEFAULT_HERO_IMAGE, WHATSAPP_NUMBER, INSTAGRAM_HANDLE, SHOP_ADDRESS, SHOP_EMAIL } from './constants';
 import Header from './components/Header';
 import ProductCard from './components/ProductCard';
 import Cart from './components/Cart';
@@ -358,6 +358,7 @@ const App: React.FC = () => {
             <div className="flex gap-4">
                <a href={`https://instagram.com/${INSTAGRAM_HANDLE}`} target="_blank" className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-amber-600 transition-all"><i className="fa-brands fa-instagram"></i></a>
                <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-green-600 transition-all"><i className="fa-brands fa-whatsapp"></i></a>
+               <a href={`mailto:${SHOP_EMAIL}`} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-blue-600 transition-all"><i className="fa-solid fa-envelope"></i></a>
             </div>
           </div>
           <div>
@@ -371,6 +372,7 @@ const App: React.FC = () => {
           <div>
              <h4 className="text-[11px] font-bold uppercase tracking-[0.4em] text-amber-500 mb-8">ЛОКАЦИЯ</h4>
              <p className="text-stone-400 text-sm mb-4"><i className="fa-solid fa-location-dot mr-2 text-amber-600"></i> {SHOP_ADDRESS}</p>
+             <p className="text-stone-400 text-sm mb-4"><i className="fa-solid fa-envelope mr-2 text-amber-600"></i> {SHOP_EMAIL}</p>
              <p className="text-stone-400 text-sm mb-4"><i className="fa-solid fa-clock mr-2 text-amber-600"></i> 09:00 - 18:00</p>
           </div>
         </div>

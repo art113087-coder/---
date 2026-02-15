@@ -18,6 +18,7 @@ const Cart: React.FC<CartProps> = ({ isOpen, onClose, items, onRemoveItem, onUpd
   const [isCheckout, setIsCheckout] = React.useState(false);
   const [formData, setFormData] = React.useState({
     name: '',
+    email: '',
     phone: '',
     address: '',
     district: SHYMKENT_DISTRICTS[0].name,
@@ -39,6 +40,7 @@ const Cart: React.FC<CartProps> = ({ isOpen, onClose, items, onRemoveItem, onUpd
     const newOrder: Order = {
       id: orderId,
       customerName: formData.name,
+      customerEmail: formData.email,
       phone: formData.phone,
       items: [...items],
       total: total,
@@ -51,9 +53,13 @@ const Cart: React.FC<CartProps> = ({ isOpen, onClose, items, onRemoveItem, onUpd
 
     onPlaceOrder(newOrder);
 
+    // Симуляция отправки чека
+    alert(`${t.receiptSent} (${formData.email})`);
+
     const message = encodeURIComponent(
       `🛍 *ЗАКАЗ #${orderId}*\n\n` +
       `👤 *Клиент:* ${formData.name}\n` +
+      `📧 *Email:* ${formData.email}\n` +
       `📞 *Телефон:* ${formData.phone}\n` +
       `🏢 *Район:* ${formData.district}\n` +
       `📍 *Адрес:* ${formData.address}\n` +
@@ -121,6 +127,7 @@ const Cart: React.FC<CartProps> = ({ isOpen, onClose, items, onRemoveItem, onUpd
             <div className="p-8 space-y-6 animate-fade-in">
               <div className="space-y-4">
                 <input name="name" value={formData.name} onChange={handleInputChange} placeholder={t.fullName} className="w-full px-5 py-4 bg-stone-50 rounded-xl text-sm outline-none border border-transparent focus:border-amber-500" />
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder={t.email} className="w-full px-5 py-4 bg-stone-50 rounded-xl text-sm outline-none border border-transparent focus:border-amber-500" />
                 <input name="phone" value={formData.phone} onChange={handleInputChange} placeholder={t.phone} className="w-full px-5 py-4 bg-stone-50 rounded-xl text-sm outline-none border border-transparent focus:border-amber-500" />
               </div>
 
@@ -181,7 +188,7 @@ const Cart: React.FC<CartProps> = ({ isOpen, onClose, items, onRemoveItem, onUpd
                 Оформить доставку <i className="fa-solid fa-arrow-right ml-2"></i>
               </button>
             ) : (
-              <button onClick={handleFinalCheckout} disabled={!formData.name || !formData.phone} className="w-full py-5 bg-green-600 text-white font-bold uppercase text-xs tracking-widest rounded-xl hover:bg-green-700 transition shadow-lg disabled:opacity-30">
+              <button onClick={handleFinalCheckout} disabled={!formData.name || !formData.phone || !formData.email} className="w-full py-5 bg-green-600 text-white font-bold uppercase text-xs tracking-widest rounded-xl hover:bg-green-700 transition shadow-lg disabled:opacity-30">
                 <i className="fa-brands fa-whatsapp mr-2 text-lg"></i> {t.completeOrder}
               </button>
             )}

@@ -46,6 +46,7 @@ export const TRANSLATIONS: any = {
     status_delivered: "Доставлено",
     adminOrders: "Заказы",
     fullName: "Ваше имя",
+    email: "Электронная почта",
     phone: "Ваш телефон",
     deliveryAddress: "Улица, дом, квартира",
     paymentKaspi: "Kaspi перевод / QR",
@@ -74,7 +75,8 @@ export const TRANSLATIONS: any = {
     price: "Цена",
     sizes: "Размеры",
     colors: "Цвета",
-    description: "Описание"
+    description: "Описание",
+    receiptSent: "Чек об оплате отправлен на вашу почту!"
   },
   kk: {
     home: "Басты бет",
@@ -106,6 +108,7 @@ export const TRANSLATIONS: any = {
     status_delivered: "Жеткізілді",
     adminOrders: "Тапсырыстар",
     fullName: "Атыңыз",
+    email: "Электронды пошта",
     phone: "Телефоныңыз",
     deliveryAddress: "Көше, үй, пәтер",
     paymentKaspi: "Kaspi аударым / QR",
@@ -134,7 +137,8 @@ export const TRANSLATIONS: any = {
     price: "Бағасы",
     sizes: "Өлшемдері",
     colors: "Түстері",
-    description: "Сипаттамасы"
+    description: "Сипаттамасы",
+    receiptSent: "Төлем чегі поштаңызға жіберілді!"
   },
   en: {
     home: "Home",
@@ -166,6 +170,7 @@ export const TRANSLATIONS: any = {
     status_delivered: "Delivered",
     adminOrders: "Orders",
     fullName: "Full Name",
+    email: "Email Address",
     phone: "Phone Number",
     deliveryAddress: "Street, House, Apt",
     paymentKaspi: "Kaspi Transfer / QR",
@@ -194,7 +199,8 @@ export const TRANSLATIONS: any = {
     price: "Price",
     sizes: "Sizes",
     colors: "Colors",
-    description: "Description"
+    description: "Description",
+    receiptSent: "Payment receipt sent to your email!"
   },
   ky: {
     home: "Башкы бет",
@@ -226,6 +232,7 @@ export const TRANSLATIONS: any = {
     status_delivered: "Жеткирилди",
     adminOrders: "Тапшырыктар",
     fullName: "Атыңыз",
+    email: "Электрондук почта",
     phone: "Телефонуңуз",
     deliveryAddress: "Көчө, үй, батир",
     paymentKaspi: "Kaspi которуу / QR",
@@ -254,7 +261,8 @@ export const TRANSLATIONS: any = {
     price: "Баасы",
     sizes: "Өлчөмдөрү",
     colors: "Түстөрү",
-    description: "Сүрөттөмөсү"
+    description: "Сүрөттөмөсү",
+    receiptSent: "Төлөм чеги почтаңызга жөнөтүлдү!"
   }
 };
 
@@ -380,6 +388,7 @@ export const MOCK_PRODUCTS: Product[] = [
 ];
 
 export const SHOP_ADDRESS = "г. Шымкент, Рынок 'Автонур', Ряд 5, Бутик 12";
+export const SHOP_EMAIL = "zhumagul.boutique@gmail.com";
 export const WHATSAPP_NUMBER = "77000000000";
 export const INSTAGRAM_HANDLE = "zhumagul_boutique";
 export const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=2500";
